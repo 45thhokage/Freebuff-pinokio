@@ -1,33 +1,46 @@
+const fs = require("fs")
+const path = require("path")
+
+// Freebuff Desktop (Windows 64-bit) installs here, e.g.
+// C:\Users\<you>\AppData\Local\Programs\@codebufffreebuff-desktop\Freebuff.exe
+function desktopExe() {
+  const base = process.env.LOCALAPPDATA || process.env.PROGRAMFILES || ""
+  return path.join(base, "Programs", "@codebufffreebuff-desktop", "Freebuff.exe")
+}
+
 module.exports = {
   version: "7.0",
+  path: "plugin",
   title: "Freebuff Desktop",
   icon: "icon.png",
-  description: "The FREE coding agent for your desktop. Launches the Freebuff Desktop app (Windows 64-bit) in your current project.",
+  description: "Open the current project in the Freebuff Desktop app (Windows 64-bit).",
   link: "https://freebuff.com/desktop",
-  path: "plugin",
-  install: [{
-    method: "shell.run",
-    params: {
-      message: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$exe = Join-Path $env:LOCALAPPDATA 'Programs\\@codebufffreebuff-desktop\\Freebuff.exe'; if (Test-Path $exe) { Write-Output 'Freebuff Desktop is already installed.' } else { Start-Process 'https://freebuff.com/api/desktop/download/windows'; Write-Output 'Opening the Freebuff Desktop download page (Windows 64-bit). Please run the installer, then come back and press Run.' }\""
+  launch_type: "desktop",
+  run: async () => {
+    if (fs.existsSync(desktopExe())) {
+      return [{
+        method: "exec",
+        params: {
+          // Start-Process detaches the GUI so this step finishes immediately.
+          // -WindowStyle Hidden avoids a console flash.
+          message: "powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command \"Start-Process -FilePath '" + desktopExe() + "' -ArgumentList '{{args.cwd}}'\"",
+          path: "{{args.cwd}}"
+        }
+      }]
     }
-  }],
+    return [{
+      method: "notify",
+      params: {
+        html: "Freebuff Desktop is not installed. Click to download it for Windows 64-bit.",
+        href: "https://freebuff.com/api/desktop/download/windows",
+        target: "_blank"
+      }
+    }]
+  },
   uninstall: [{
     method: "fs.rm",
     params: {
       path: "."
-    }
-  }],
-  update: [{
-    method: "shell.run",
-    params: {
-      message: "git pull"
-    }
-  }],
-  run: [{
-    method: "shell.run",
-    params: {
-      message: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$exe = Join-Path $env:LOCALAPPDATA 'Programs\\@codebufffreebuff-desktop\\Freebuff.exe'; if (Test-Path $exe) { Start-Process -FilePath $exe -ArgumentList '{{args.cwd}}' } else { Start-Process 'https://freebuff.com/api/desktop/download/windows'; Write-Output 'Freebuff Desktop not found. Opening the Windows 64-bit download page. Please install it, then press Run again.' }\"",
-      path: "{{args.cwd}}"
     }
   }]
 }
